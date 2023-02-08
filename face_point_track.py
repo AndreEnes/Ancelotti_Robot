@@ -7,20 +7,39 @@ def send_coords(params):
   # interface with arduino
   return 2
 
-def get_selected_points_coords(landmark_list, selected_points):
-  return 1
+def coords_frame_average(coords, num_frames):
+  ave_coords = []
+
+  for i, idx in enumerate(coords):
+    for j, jdx in enumerate(idx):
+      if len(ave_coords) < j+1:
+        ave_coords.append([jdx[0], jdx[1], jdx[2]])
+      else:
+        ave_coords[j][1] += jdx[1]
+        ave_coords[j][2] += jdx[2] 
+  
+  for i, idx in enumerate(ave_coords):
+    ave_coords[i][1] = ave_coords[i][1] / num_frames
+    ave_coords[i][2] = ave_coords[i][2] / num_frames
+  
+  return ave_coords
 
 def calculate_parameters(point_denorm):
   #point_denorm: [num. of point][num. of axis]
-  #num. of axis: 1 --> x, 2 --> y
-  scalar = 2
-  relative_meas = np.sqrt((point_denorm[3][2] - point_denorm[2][2])**2 + (point_denorm[3][1] - point_denorm[2][1])**2)
-  mouth_ratio = np.sqrt((point_denorm[0][2] - point_denorm[1][2])**2 + (point_denorm[0][1] - point_denorm[1][1])**2)
+  #num. of axis: 1 --> x, 2 --> y, 3 --> z
   
-  if mouth_ratio > 20:
-    print('mouth ratio: ', mouth_ratio, 'meas: ', relative_meas, 'bora: ', mouth_ratio*scalar/relative_meas)
+  bottom_lip = np.sqrt((point_denorm[bottom_lip_index[0]][1] - point_denorm[bottom_lip_index[1]][1])**2 + (point_denorm[bottom_lip_index[0]][2] - point_denorm[bottom_lip_index[1]][2])**2)
+  top_lip = np.sqrt((point_denorm[top_lip_index[0]][1] - point_denorm[top_lip_index[1]][1])**2 + (point_denorm[top_lip_index[0]][2] - point_denorm[top_lip_index[1]][2])**2)
+
+  mouth_ratio = np.sqrt((point_denorm[mouth_ratio_index[0]][1] - point_denorm[mouth_ratio_index[1]][1])**2 + (point_denorm[mouth_ratio_index[0]][2] - point_denorm[mouth_ratio_index[1]][2])**2)
+  nose_gap = np.sqrt((point_denorm[nose_gap_index[0]][1] - point_denorm[nose_gap_index[1]][1])**2 + (point_denorm[nose_gap_index[0]][2] - point_denorm[nose_gap_index[1]][2])**2)
+
+  if mouth_ratio > nose_gap:
+    print('2nd threshold: {:.2f}'.format(mouth_ratio))
+  elif mouth_ratio > (bottom_lip + top_lip):
+    print('1st threshold: {:.2f}'.format(mouth_ratio))
   
-  
+  # TO MEET CERTAIN THERESHOLDS, COMPARE BETWEEN DIFFERENT POINTS, LIKE LIP THICKNESS OR DISTANCE BETWEEN EYES
   return 0
 
 
@@ -31,11 +50,42 @@ mp_face_mesh = mp.solutions.face_mesh
 image_w = 2880  #change according to computer
 image_h = 1800  #use tkinter???
 color = [0, 0, 0]
-selected_points = [12, 15, 105, 107, 195, 197, 334] #points of face model of mediapipe, check reference image
+selected_points = [0, 12, 13, 14, 15, 17, 1, 5] #points of face model of mediapipe, check reference image
 selected_points.sort()  #list must be sorted
 
-denormalized_coords = []
+#bottom_lip   --> 15, 17
+#top_lip      --> 0, 12
+#mouth ratio  --> 13, 14
+#nose_gap     --> 1, 5
+bottom_lip_index = []
+top_lip_index = []
+mouth_ratio_index = []
+nose_gap_index = []
 
+for i in range(len(selected_points)):
+  if selected_points[i] == 0:
+    top_lip_index.append(i)
+  elif selected_points[i] == 12:
+    top_lip_index.append(i)
+  elif selected_points[i] == 15:
+    bottom_lip_index.append(i)
+  elif selected_points[i] == 17:
+    bottom_lip_index.append(i)
+  elif selected_points[i] == 1:
+    nose_gap_index.append(i)
+  elif selected_points[i] == 5:
+    nose_gap_index.append(i)
+  elif selected_points[i] == 13:
+    mouth_ratio_index.append(i)
+  elif selected_points[i] == 14:
+    mouth_ratio_index.append(i)
+
+print(bottom_lip_index, top_lip_index, mouth_ratio_index,selected_points)
+
+denormalized_coords = []
+coord_average = []
+num_frame_average = 5
+k = 0
 
 cap = cv2.VideoCapture(0)
 
@@ -62,24 +112,38 @@ with mp_face_mesh.FaceMesh(
     image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
     if results.multi_face_landmarks:
       for face_landmarks in results.multi_face_landmarks:
+        '''mp_drawing.draw_landmarks(
+          image=image,
+          landmark_list=face_landmarks,
+          landmark_drawing_spec=DrawingSpec(color=(0, 0, 0), thickness=1, circle_radius=1))'''
         mp_drawing.draw_landmarks(
           image=image,
           landmark_list=face_landmarks,
-          landmark_drawing_spec=DrawingSpec(color=(0, 0, 0), thickness=1, circle_radius=1))
+          connections=mp_face_mesh.FACEMESH_TESSELATION,
+          landmark_drawing_spec=None,
+          connection_drawing_spec=mp_drawing_styles
+          .get_default_face_mesh_tesselation_style())
         
         j = 0  #selected_points selection
         
         for i in range(len(results.multi_face_landmarks[0].landmark)):
           if i == selected_points[j]:            
-            denormalized_coords.append([selected_points[j], round(results.multi_face_landmarks[0].landmark[i].x * image_w), 
+            coord_average.append([selected_points[j], round(results.multi_face_landmarks[0].landmark[i].x * image_w), 
                                         round(results.multi_face_landmarks[0].landmark[i].y * image_h)])
 
             j += 1
             
             if j == len(selected_points):  # fill the whole buffer to calculate ratios
               j = 0               
-              calculate_parameters(denormalized_coords)                            
-              denormalized_coords.clear()
+              denormalized_coords.append(coord_average)
+              k += 1
+
+              if k == num_frame_average:
+                k = 0
+                calculate_parameters(coords_frame_average(denormalized_coords, num_frame_average))
+                denormalized_coords.clear()
+
+              coord_average.clear()
 
 
     # Flip the image horizontally for a selfie-view display.
