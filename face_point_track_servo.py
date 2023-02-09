@@ -2,6 +2,21 @@ import cv2
 import mediapipe as mp
 from mediapipe.python.solutions.drawing_utils import DrawingSpec
 import numpy as np
+import serial
+import time
+import maestro
+
+servo = maestro.Controller()
+servo.setAccel(0,4)      
+servo.setSpeed(0,50) 
+servo.setAccel(2,4)      
+servo.setSpeed(2,50)
+servo.setAccel(4,4)      
+servo.setSpeed(4,50) 
+servo.setAccel(5,4)      
+servo.setSpeed(5,50) 
+servo.setAccel(6,4)      
+servo.setSpeed(6,50)     
 
 def coords_frame_average(coords, num_frames):
   ave_coords = []
@@ -25,7 +40,7 @@ def get_distance(index, coords):
 
 def calculate_parameters(point_denorm):
   #point_denorm: [num. of point][num. of axis]
-  #num. of axis: 1 --> x, 2 --> y
+  #num. of axis: 1 --> x, 2 --> y, 3 --> z
   
   bottom_lip = get_distance(bottom_lip_index, point_denorm)
   top_lip = get_distance(top_lip_index, point_denorm)
@@ -35,13 +50,68 @@ def calculate_parameters(point_denorm):
 
   top_eyebrow_l_ratio = get_distance(top_eyebrow_l_ratio_index, point_denorm)
 
-  if mouth_ratio > nose_gap:
-    print('Mouth really open: {:.2f}'.format(mouth_ratio), 'Nose gap: {:.2f}'.format(nose_gap))
-  elif mouth_ratio > (bottom_lip + top_lip):
-    print('Mouth open: {:.2f}'.format(mouth_ratio), 'Nose gap: {:.2f}'.format(nose_gap))
+  top_eyebrow_r_ratio = get_distance(top_eyebrow_r_ratio_index, point_denorm)
+
+  right_eye_ratio = get_distance(right_eye_index, point_denorm)
+
+  left_eye_ratio = get_distance(left_eye_index, point_denorm)
+
+  #print(left_eye_ratio/nose_gap)
+
+  boca_mov = mouth_ratio/nose_gap
+  if (boca_mov > 2.5):
+    boca_mov = 2.5
+
+  boca_mov = (8000-((boca_mov*4000)/(2.5)))
+  #print(boca_mov)
+  servo.setTarget(6,int(boca_mov))
+
+  ceja_izq_mov = top_eyebrow_l_ratio/nose_gap
+  if (ceja_izq_mov > 1.3):
+    ceja_izq_mov = 1.3
+  elif (ceja_izq_mov < 0.3):
+    ceja_izq_mov = 0.3
+
+  ceja_izq_mov = (9000-((ceja_izq_mov*4000)/(1)))
+  #print(boca_mov)
+  servo.setTarget(5,int(ceja_izq_mov))
+
+  ceja_der_mov = top_eyebrow_r_ratio/nose_gap
+  if (ceja_der_mov > 1.3):
+    ceja_der_mov = 1.3
+  elif (ceja_der_mov < 0.5):
+    ceja_der_mov = 0.5
+
+  ceja_der_mov = (((ceja_der_mov*4000)/(0.8))+1000)
+  #print(boca_mov)
+  servo.setTarget(4,int(ceja_der_mov))
+
+  ojo_der_mov = right_eye_ratio/nose_gap
+  if (ojo_der_mov > 1.3):
+    ojo_der_mov = 1.3
+  elif (ojo_der_mov < 0.7):
+    ojo_der_mov = 0.7
+
+  ojo_der_mov = (((ojo_der_mov*4000)/(0.6))-1000)
+  #print(ojo_der_mov)
+  servo.setTarget(0,int(ojo_der_mov))
+
+  ojo_izq_mov = left_eye_ratio/nose_gap
+  if (ojo_izq_mov > 1.3):
+    ojo_izq_mov = 1.3
+  elif (ojo_izq_mov < 0.7):
+    ojo_izq_mov = 0.7
+
+  ojo_izq_mov = (((ojo_izq_mov*4000)/(0.6))-1000)
+  #print(ojo_izq_mov)
+  servo.setTarget(2,int(ojo_izq_mov))
+  #if mouth_ratio > nose_gap:
+  #  print('Mouth really open: {:.2f}'.format(mouth_ratio), 'Nose gap: {:.2f}'.format(nose_gap))
+  #elif mouth_ratio > (bottom_lip + top_lip):
+  #  print('Mouth open: {:.2f}'.format(mouth_ratio), 'Nose gap: {:.2f}'.format(nose_gap))
   
-  if top_eyebrow_l_ratio < nose_gap:
-    print('Ancelotti mode: {:.2f}'.format(top_eyebrow_l_ratio))
+  #if top_eyebrow_l_ratio < nose_gap:
+  #  print('Ancelotti mode: {:.2f}'.format(top_eyebrow_l_ratio))
 
   # TO MEET CERTAIN THERESHOLDS, COMPARE BETWEEN DIFFERENT POINTS, LIKE LIP THICKNESS OR DISTANCE BETWEEN EYES
 
@@ -53,7 +123,7 @@ mp_face_mesh = mp.solutions.face_mesh
 image_w = 2880  #change according to computer
 image_h = 1800  #use tkinter???
 color = [0, 0, 0]
-selected_points = [0, 12, 13, 14, 15, 17, 1, 5, 107, 108, 336, 337] #points of face model of mediapipe, check reference image
+selected_points = [0, 12, 13, 14, 15, 17, 1, 5, 107, 108, 336, 337, 257, 374, 27, 145] #points of face model of mediapipe, check reference image
 selected_points.sort()  #list must be sorted
 
 #bottom_lip   --> 15, 17
@@ -64,6 +134,8 @@ selected_points.sort()  #list must be sorted
 #top_eyebrow_r_ratio  --> 336, 337
 #LEFT_IRIS = [474,475, 476, 477]
 #RIGHT_IRIS = [469, 470, 471, 472]
+#right eye 257, 374
+#left eye 27, 145
 
 bottom_lip_index = []
 top_lip_index = []
@@ -71,6 +143,8 @@ mouth_ratio_index = []
 nose_gap_index = []
 top_eyebrow_l_ratio_index = []
 top_eyebrow_r_ratio_index = []
+right_eye_index = []
+left_eye_index = []
 
 for i, idx in enumerate(selected_points):
   print(i, idx)
@@ -98,6 +172,14 @@ for i, idx in enumerate(selected_points):
     top_eyebrow_r_ratio_index.append(i)
   elif idx == 337:
     top_eyebrow_r_ratio_index.append(i)
+  elif idx == 257:
+    right_eye_index.append(i)
+  elif idx == 374:
+    right_eye_index.append(i)
+  elif idx == 27:
+    left_eye_index.append(i)
+  elif idx == 145:
+    left_eye_index.append(i)
 
 
 denormalized_coords = []
