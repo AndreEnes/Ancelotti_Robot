@@ -24,26 +24,29 @@ def coords_frame_average(coords, num_frames):
   
   return ave_coords
 
+def get_distance(index, coords):
+  return np.sqrt((coords[index[0]][1] - coords[index[1]][1])**2 + (coords[index[0]][2] - coords[index[1]][2])**2)
+
 def calculate_parameters(point_denorm):
   #point_denorm: [num. of point][num. of axis]
   #num. of axis: 1 --> x, 2 --> y, 3 --> z
   
-  bottom_lip = np.sqrt((point_denorm[bottom_lip_index[0]][1] - point_denorm[bottom_lip_index[1]][1])**2 + (point_denorm[bottom_lip_index[0]][2] - point_denorm[bottom_lip_index[1]][2])**2)
-  top_lip = np.sqrt((point_denorm[top_lip_index[0]][1] - point_denorm[top_lip_index[1]][1])**2 + (point_denorm[top_lip_index[0]][2] - point_denorm[top_lip_index[1]][2])**2)
+  bottom_lip = get_distance(bottom_lip_index, point_denorm)
+  top_lip = get_distance(top_lip_index, point_denorm)
 
-  mouth_ratio = np.sqrt((point_denorm[mouth_ratio_index[0]][1] - point_denorm[mouth_ratio_index[1]][1])**2 + (point_denorm[mouth_ratio_index[0]][2] - point_denorm[mouth_ratio_index[1]][2])**2)
-  nose_gap = np.sqrt((point_denorm[nose_gap_index[0]][1] - point_denorm[nose_gap_index[1]][1])**2 + (point_denorm[nose_gap_index[0]][2] - point_denorm[nose_gap_index[1]][2])**2)
+  mouth_ratio = get_distance(mouth_ratio_index, point_denorm) 
+  nose_gap = get_distance(nose_gap_index, point_denorm) 
 
-  top_eyebrow_l_ratio = np.sqrt((point_denorm[top_eyebrow_l_ratio_index[0]][1] - point_denorm[top_eyebrow_l_ratio_index[1]][1])**2 
-                                + (point_denorm[top_eyebrow_l_ratio_index[0]][2] - point_denorm[top_eyebrow_l_ratio_index[1]][2])**2)
+  top_eyebrow_l_ratio = get_distance(top_eyebrow_l_ratio_index, point_denorm)
 
   if mouth_ratio > nose_gap:
-    print('Mouth really open: {:.2f}'.format(mouth_ratio))
+    print('Mouth really open: {:.2f}'.format(mouth_ratio), 'Nose gap: {:.2f}'.format(nose_gap))
   elif mouth_ratio > (bottom_lip + top_lip):
-    print('Mouth open: {:.2f}'.format(mouth_ratio))
+    print('Mouth open: {:.2f}'.format(mouth_ratio), 'Nose gap: {:.2f}'.format(nose_gap))
   
   if top_eyebrow_l_ratio < nose_gap:
     print('Ancelotti mode: {:.2f}'.format(top_eyebrow_l_ratio))
+
   # TO MEET CERTAIN THERESHOLDS, COMPARE BETWEEN DIFFERENT POINTS, LIKE LIP THICKNESS OR DISTANCE BETWEEN EYES
   return 0
 
@@ -64,6 +67,9 @@ selected_points.sort()  #list must be sorted
 #nose_gap     --> 1, 5
 #top_eyebrow_l_ratio  --> 107, 108
 #top_eyebrow_r_ratio  --> 336, 337
+#LEFT_IRIS = [474,475, 476, 477]
+#RIGHT_IRIS = [469, 470, 471, 472]
+
 bottom_lip_index = []
 top_lip_index = []
 mouth_ratio_index = []
