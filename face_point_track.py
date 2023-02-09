@@ -34,11 +34,16 @@ def calculate_parameters(point_denorm):
   mouth_ratio = np.sqrt((point_denorm[mouth_ratio_index[0]][1] - point_denorm[mouth_ratio_index[1]][1])**2 + (point_denorm[mouth_ratio_index[0]][2] - point_denorm[mouth_ratio_index[1]][2])**2)
   nose_gap = np.sqrt((point_denorm[nose_gap_index[0]][1] - point_denorm[nose_gap_index[1]][1])**2 + (point_denorm[nose_gap_index[0]][2] - point_denorm[nose_gap_index[1]][2])**2)
 
+  top_eyebrow_l_ratio = np.sqrt((point_denorm[top_eyebrow_l_ratio_index[0]][1] - point_denorm[top_eyebrow_l_ratio_index[1]][1])**2 
+                                + (point_denorm[top_eyebrow_l_ratio_index[0]][2] - point_denorm[top_eyebrow_l_ratio_index[1]][2])**2)
+
   if mouth_ratio > nose_gap:
-    print('2nd threshold: {:.2f}'.format(mouth_ratio))
+    print('Mouth really open: {:.2f}'.format(mouth_ratio))
   elif mouth_ratio > (bottom_lip + top_lip):
-    print('1st threshold: {:.2f}'.format(mouth_ratio))
+    print('Mouth open: {:.2f}'.format(mouth_ratio))
   
+  if top_eyebrow_l_ratio < nose_gap:
+    print('Ancelotti mode: {:.2f}'.format(top_eyebrow_l_ratio))
   # TO MEET CERTAIN THERESHOLDS, COMPARE BETWEEN DIFFERENT POINTS, LIKE LIP THICKNESS OR DISTANCE BETWEEN EYES
   return 0
 
@@ -50,41 +55,53 @@ mp_face_mesh = mp.solutions.face_mesh
 image_w = 2880  #change according to computer
 image_h = 1800  #use tkinter???
 color = [0, 0, 0]
-selected_points = [0, 12, 13, 14, 15, 17, 1, 5] #points of face model of mediapipe, check reference image
+selected_points = [0, 12, 13, 14, 15, 17, 1, 5, 107, 108, 336, 337] #points of face model of mediapipe, check reference image
 selected_points.sort()  #list must be sorted
 
 #bottom_lip   --> 15, 17
 #top_lip      --> 0, 12
 #mouth ratio  --> 13, 14
 #nose_gap     --> 1, 5
+#top_eyebrow_l_ratio  --> 107, 108
+#top_eyebrow_r_ratio  --> 336, 337
 bottom_lip_index = []
 top_lip_index = []
 mouth_ratio_index = []
 nose_gap_index = []
+top_eyebrow_l_ratio_index = []
+top_eyebrow_r_ratio_index = []
 
-for i in range(len(selected_points)):
-  if selected_points[i] == 0:
+for i, idx in enumerate(selected_points):
+  print(i, idx)
+  if idx == 0:
     top_lip_index.append(i)
-  elif selected_points[i] == 12:
+  elif idx == 12:
     top_lip_index.append(i)
-  elif selected_points[i] == 15:
+  elif idx == 15:
     bottom_lip_index.append(i)
-  elif selected_points[i] == 17:
+  elif idx == 17:
     bottom_lip_index.append(i)
-  elif selected_points[i] == 1:
+  elif idx == 1:
     nose_gap_index.append(i)
-  elif selected_points[i] == 5:
+  elif idx == 5:
     nose_gap_index.append(i)
-  elif selected_points[i] == 13:
+  elif idx == 13:
     mouth_ratio_index.append(i)
-  elif selected_points[i] == 14:
+  elif idx == 14:
     mouth_ratio_index.append(i)
+  elif idx == 107:
+    top_eyebrow_l_ratio_index.append(i)
+  elif idx == 108:
+    top_eyebrow_l_ratio_index.append(i)
+  elif idx == 336:
+    top_eyebrow_r_ratio_index.append(i)
+  elif idx == 337:
+    top_eyebrow_r_ratio_index.append(i)
 
-print(bottom_lip_index, top_lip_index, mouth_ratio_index,selected_points)
 
 denormalized_coords = []
 coord_average = []
-num_frame_average = 5
+num_frame_average = 3
 k = 0
 
 cap = cv2.VideoCapture(0)
