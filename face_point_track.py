@@ -3,10 +3,6 @@ import mediapipe as mp
 from mediapipe.python.solutions.drawing_utils import DrawingSpec
 import numpy as np
 
-def send_coords(params):
-  # interface with arduino
-  return 2
-
 def coords_frame_average(coords, num_frames):
   ave_coords = []
 
@@ -48,7 +44,6 @@ def calculate_parameters(point_denorm):
     print('Ancelotti mode: {:.2f}'.format(top_eyebrow_l_ratio))
 
   # TO MEET CERTAIN THERESHOLDS, COMPARE BETWEEN DIFFERENT POINTS, LIKE LIP THICKNESS OR DISTANCE BETWEEN EYES
-  return 0
 
 
 mp_drawing = mp.solutions.drawing_utils
